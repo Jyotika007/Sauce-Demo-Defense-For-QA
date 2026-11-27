@@ -1,0 +1,7 @@
+node_modules/
+.env
+# Raw per-test output (traces, screenshots) is large; the HTML report in evidence/report is kept
+evidence/test-results/
+playwright-report/
+blob-report/
+.DS_Store

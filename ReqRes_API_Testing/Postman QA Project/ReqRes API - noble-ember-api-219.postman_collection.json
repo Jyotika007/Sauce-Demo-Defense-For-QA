@@ -1,0 +1,936 @@
+{
+  "info": {
+    "_postman_id": "bd575d16-867e-4d6e-954f-d2cd22d8124a",
+    "name": "ReqRes API - noble-ember-api-219",
+    "description": "Test suite for the ReqRes API.\n\n/api/\\* uses the x-api-key header (publicKey for auth endpoints, manageKey for admin CRUD).  \n/app/\\* uses Authorization: Bearer .\n\nRun order: Authentication, then Collection Records (Create before Get/Update/Delete), then Error Cases.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "58001054",
+    "_collection_link": "https://go.postman.co/collection/58001054-bd575d16-867e-4d6e-954f-d2cd22d8124a?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Public key can read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{publicKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records"
+              ]
+            },
+            "description": "/api/* accepts the public key for reads."
+          },
+          "response": []
+        },
+        {
+          "name": "Public key cannot write",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Write with public key is accepted (201)\", () => {\n    pm.expect(pm.response.code).to.equal(201);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{publicKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": {\n    \"name\": \"Auth Test\",\n    \"price\": 9.99,\n    \"category\": \"Test\",\n    \"in_stock\": true\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records"
+              ]
+            },
+            "description": "Public key is read/login only. Note the actual status code in your report."
+          },
+          "response": []
+        },
+        {
+          "name": "Bearer token on /api (wrong scheme)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Request is rejected (401 or 403)\", () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "apikey"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer abc123"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records"
+              ]
+            },
+            "description": "/api/* needs x-api-key, not Bearer."
+          },
+          "response": []
+        },
+        {
+          "name": "Create app user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\"appUserEmail\", \"qa.user.\" + Date.now() + \"@example.com\");"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 or 201\", () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const json = pm.response.json();",
+                  "const id = json.id || (json.data && json.data.id) || (json.user && json.user.id);",
+                  "pm.test(\"App user id returned\", () => pm.expect(id).to.not.be.undefined);",
+                  "if (id) { pm.environment.set(\"appUserId\", id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{appUserEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/app-users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "app-users"
+              ]
+            },
+            "description": "Free plan allows 10 app users. Delete old test users in the dashboard if this starts failing."
+          },
+          "response": []
+        },
+        {
+          "name": "Simulate session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 2xx\", () => pm.expect(pm.response.code).to.be.within(200, 299));\nconst json = pm.response.json();\nconst token = json.session_token || (json.data && json.data.session_token) || json.token;\npm.test(\"Session token returned\", () => pm.expect(token).to.be.a(\"string\").and.not.empty);\nif (token) { pm.environment.set(\"sessionToken\", token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/app-users/{{appUserId}}/sessions/simulate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "app-users",
+                "{{appUserId}}",
+                "sessions",
+                "simulate"
+              ]
+            },
+            "description": "Returns a 6-hour session token without needing an email code."
+          },
+          "response": []
+        },
+        {
+          "name": "Get current user (Bearer token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sessionToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/app/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "app",
+                "me"
+              ]
+            },
+            "description": "/app/* uses the Bearer session token."
+          },
+          "response": []
+        },
+        {
+          "name": "Get current user without token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Request is rejected (401 or 403)\", () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "app",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get current user with invalid token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Request is rejected (401 or 403)\", () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{bearer_token_0s7j}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/app/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "app",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "x-api-key on /app (wrong scheme)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Request is rejected (401 or 403)\", () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/app/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "app",
+                "me"
+              ]
+            },
+            "description": "/app/* needs Bearer, not x-api-key."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Collection Records",
+      "item": [
+        {
+          "name": "List records",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\n\npm.test(\"data is an array\", () => {\n  const json = pm.response.json();\n  pm.expect(json.data).to.be.an(\"array\");\n});\n\npm.test(\"meta has page and total\", () => {\n  const json = pm.response.json();\n  pm.expect(json).to.have.property(\"meta\");\n  pm.expect(json.meta).to.have.property(\"page\");\n  pm.expect(json.meta).to.have.property(\"total\");\n});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create record",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate fresh random product data for every run",
+                  "const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];",
+                  "const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;",
+                  "",
+                  "const adjectives = [\"Wireless\", \"Ergonomic\", \"Compact\", \"Rugged\", \"Premium\", \"Smart\", \"Portable\", \"Vintage\", \"Eco\", \"Ultra\"];",
+                  "const nouns = [\"Mouse\", \"Keyboard\", \"Headset\", \"Webcam\", \"Speaker\", \"Charger\", \"Monitor\", \"Dock\", \"Lamp\", \"Backpack\"];",
+                  "const categories = [\"accessories\", \"audio\", \"office\", \"gaming\", \"home\", \"travel\", \"power\"];",
+                  "",
+                  "pm.variables.set(\"productName\", pick(adjectives) + \" \" + pick(nouns));",
+                  "pm.variables.set(\"productPrice\", (rand(499, 49999) / 100).toFixed(2));",
+                  "pm.variables.set(\"productInStock\", String(Math.random() < 0.5));",
+                  "pm.variables.set(\"productCategory\", pick(categories));",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));\n\npm.test(\"Response has data\", () => {\n  const json = pm.response.json();\n  pm.expect(json).to.have.property(\"data\");\n});\n\nif (pm.response.code === 201) {\n  const json = pm.response.json();\n  pm.environment.set(\"recordId\", json.data.id);\n}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": {\n    \"name\": \"{{productName}}\",\n    \"price\": {{productPrice}},\n    \"in_stock\": {{productInStock}},\n    \"category\": \"{{productCategory}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records"
+              ]
+            },
+            "description": "No schema is defined for products, so the body is a sample. Saves data.id to recordId."
+          },
+          "response": []
+        },
+        {
+          "name": "Get single record",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\n\npm.test(\"data.id matches recordId\", () => {\n  const json = pm.response.json();\n  pm.expect(String(json.data.id)).to.eql(String(pm.environment.get(\"recordId\")));\n});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records/{{recordId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records",
+                "{{recordId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update record (PUT)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate fresh random product data for every run",
+                  "const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];",
+                  "const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;",
+                  "",
+                  "const adjectives = [\"Wireless\", \"Ergonomic\", \"Compact\", \"Rugged\", \"Premium\", \"Smart\", \"Portable\", \"Vintage\", \"Eco\", \"Ultra\"];",
+                  "const nouns = [\"Mouse\", \"Keyboard\", \"Headset\", \"Webcam\", \"Speaker\", \"Charger\", \"Monitor\", \"Dock\", \"Lamp\", \"Backpack\"];",
+                  "const categories = [\"accessories\", \"audio\", \"office\", \"gaming\", \"home\", \"travel\", \"power\"];",
+                  "",
+                  "pm.variables.set(\"productName\", pick(adjectives) + \" \" + pick(nouns));",
+                  "pm.variables.set(\"productPrice\", (rand(499, 49999) / 100).toFixed(2));",
+                  "pm.variables.set(\"productInStock\", String(Math.random() < 0.5));",
+                  "pm.variables.set(\"productCategory\", pick(categories));",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\n\npm.test(\"Response has data\", () => {\n  const json = pm.response.json();\n  pm.expect(json).to.have.property(\"data\");\n});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": {\n    \"name\": \"{{productName}} (Updated)\",\n    \"price\": {{productPrice}},\n    \"in_stock\": {{productInStock}},\n    \"category\": \"{{productCategory}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records/{{recordId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records",
+                "{{recordId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Partial update (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));\n\npm.test(\"Response has data\", () => {\n  const json = pm.response.json();\n  pm.expect(json).to.have.property(\"data\");\n});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": {\n    \"in_stock\": false\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records/{{recordId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records",
+                "{{recordId}}"
+              ]
+            },
+            "description": "PATCH merges only the fields sent; PUT replaces the whole record."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete record",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records/{{recordId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records",
+                "{{recordId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Cases",
+      "item": [
+        {
+          "name": "No API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));\n\npm.test(\"Body has error field\", () => {\n  const json = pm.response.json();\n  pm.expect(json).to.have.property(\"error\", \"missing_api_key\");\n});\n\n"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "apikey"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "invalid_key"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Non-existent record",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records/nonexistent_{{$guid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records",
+                "nonexistent_{{$guid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update non-existent record (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": {\n    \"in_stock\": false\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records/nonexistent_{{$guid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records",
+                "nonexistent_{{$guid}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid request body",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{manageKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"data\": { \"name\": \"{{$randomProductName}}\", \"price\": ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/collections/products/records",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "collections",
+                "products",
+                "records"
+              ]
+            },
+            "description": "Intentionally malformed JSON."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "x-api-key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{manageKey}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "bearer_token_0s7j",
+      "secret": true
+    }
+  ]
+}
